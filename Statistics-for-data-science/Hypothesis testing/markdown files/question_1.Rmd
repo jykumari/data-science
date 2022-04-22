@@ -1,0 +1,175 @@
+---
+title: "Question 1"
+author: "Jyoti Kumari"
+output:
+  bookdown::pdf_document2: 
+    toc: true
+---
+
+```{r, echo=FALSE}
+#install.packages("moments")
+```
+
+
+```{r load packages, echo=FALSE, warning=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(magrittr)
+library(knitr)
+library(patchwork)
+library(haven)
+library(moments)
+library(haven)
+```
+
+\clearpage
+
+```{r load and clean data, echo=FALSE, warning=TRUE, message=FALSE, results=FALSE}
+anes_timeseries_data <- read_dta("anes_timeseries_2020_stata_20210211.dta")
+summary(anes_timeseries_data$V201507x)
+```
+
+# Are Democratic voters older or younger than Republican voters in 2020?
+
+## Importance and Context
+The primary research question we're looking at in this report is around the age of democratic and republican voters. Age is an important demographic variable for election cycles. By focusing on the age, we can analyze our voters for the different political parties. For instance, younger voters can sometimes be less likely to vote due to the friction of registration to vote, busy life, geographic mobility, and sometimes just not having developed the habit of voting. With this insight, political campaigns can focus their initiatives on the diverse age groups.
+
+## Description of Data
+The ANES 2020 Time Series Study Preliminary Release: Pre-Election Data is being made available in two statistical file formats: SPSS (.sav) and Stata (.dta). Version used ANES2020TimeSeries_20210211
+
+Several variables were used to analyze the research questions such as V201018, V201507x, V201028, V201038, V201008, V201048, V201066, V201101, V201104, V201075x, V201076x, V201077x, and V201078x. These columns contained information to define voters, identify values for age, vote registration status, and political party. 
+
+From the original ANES dataset, a series of dataframes were created to extract the columns that were relevant to our research question and for plotting purposes. A temporary dataframe was used to clean up the data (eliminating data from other political parties and non voters). Voters were defined as people that were registered to vote, if they either voted for a presidential, house of representatives, senate, governor,  also if they vote for President in the 2012 or 2016 election. In addition, the summary data of vote/intent/preference was considered.
+
+For the age variable, records of people that refused to respond were eliminated since the age data is crucial to answer our research question. The age population of 80 of greater than 80 was reported as 80 value, even though it causes the data to pick at 80, data was preserved since our research question is related to the age variable. Political party was limited to the two political parties of interest.
+
+```{r, echo=FALSE}
+## Dataframe
+tmp_df <- data.frame(anes_timeseries_data$V201018, 
+                     anes_timeseries_data$V201507x, 
+                     anes_timeseries_data$V201008, 
+                     anes_timeseries_data$V201028,
+                     anes_timeseries_data$V201038,
+                     anes_timeseries_data$V201048,
+                     anes_timeseries_data$V201066,
+                     anes_timeseries_data$V201101,
+                     anes_timeseries_data$V201104,
+                     anes_timeseries_data$V201075x,
+                     anes_timeseries_data$V201076x,
+                     anes_timeseries_data$V201077x,
+                     anes_timeseries_data$V201078x
+                     )
+names(tmp_df) <- c("PoliticalParty",
+                   "Age", 
+                   "RegVote", 
+                   "VotePres",
+                   "VoteHouse",
+                   "VoteSenate",
+                   "VoteGovernor",
+                   "VoteUSPres2016",
+                   "VoteUSPres2012",
+                   "SumPartyPres",
+                   "SumPartyHouse",
+                   "SumPartySenate",
+                   "SumPartyGuv"
+                   )
+
+df_democrats_republican <- filter(tmp_df, 
+                       Age != -9, 
+                       PoliticalParty == 1 | PoliticalParty == 2, 
+                       RegVote == 1 | RegVote == 2, 
+                       VotePres == 1 | VoteHouse == 1 | VoteSenate == 1 | VoteGovernor == 1 | VoteUSPres2016 == 1 | VoteUSPres2012 == 1, 
+                       SumPartyPres !=-1 | SumPartyHouse !=1 | SumPartySenate != -1 | SumPartyGuv != -1
+                       )
+
+df_democrats <- filter(tmp_df, 
+                       Age != -9, 
+                       PoliticalParty == 1, 
+                       RegVote == 1 | RegVote == 2, 
+                       VotePres == 1 | VoteHouse == 1 | VoteSenate == 1 | VoteGovernor == 1 | VoteUSPres2016 == 1 | VoteUSPres2012 == 1, 
+                       SumPartyPres !=-1 | SumPartyHouse !=1 | SumPartySenate != -1 | SumPartyGuv != -1
+                       )
+
+df_republican <- filter(tmp_df, 
+                       Age != -9, 
+                       PoliticalParty == 2, 
+                       RegVote == 1 | RegVote == 2, 
+                       VotePres == 1 | VoteHouse == 1 | VoteSenate == 1 | VoteGovernor == 1 | VoteUSPres2016 == 1 | VoteUSPres2012 == 1, 
+                       SumPartyPres !=-1 | SumPartyHouse !=1 | SumPartySenate != -1 | SumPartyGuv != -1
+                       )
+
+```
+
+
+```{r, echo=FALSE, results=FALSE}
+# Data exploration
+
+## summary of dataframe
+summary(df_democrats_republican$Age)
+
+## Number of records for Democrats
+length(df_democrats_republican$Age[df_democrats_republican$PoliticalParty == 1])
+
+## Number of records for Republicans
+length(df_democrats_republican$Age[df_democrats_republican$PoliticalParty == 2])
+```
+After the data was filtered and cleaned, a graph was created to analyze the data distribution. See Figure 1. The Age distribution for both political parties is not normally distributed, and the data is negative skewed for both of the parties. As we mentioned before, the age population of 80 of greater than 80 was reported as 80 value causing the data to have a spike at the 80 age value.
+
+\clearpage
+```{r, fig.cap='Age Distribution by Political Party', fig.pos='!b', echo=FALSE}
+par(mfrow=c(1,2))
+hist(df_republican$Age,
+     main="Republican Party",
+     xlab = "Age",
+     ylab = "Number of people",
+     breaks = 30,
+     col = "red")
+hist(df_democrats$Age,
+     main="Democratic Party",
+     xlab = "Age",
+     ylab = "Number of people",
+     breaks = 30,
+     col = "skyblue3")
+```
+
+```{r, echo=FALSE, results=FALSE}
+skewness(df_democrats$Age)
+skewness(df_republican$Age)
+```
+
+
+```{r, echo=FALSE, results=FALSE}
+#boxplot(df_democrats_republican$Age ~ df_democrats_republican$PoliticalParty)
+```
+
+## Most appropriate test 
+Breaking down the data per Political Party Affiliation (Republicans or Democrats), we will get two groups of voters. The response variable is Age. Since age is a metric variable and we have two distinct groups, we can use employ the 2Sample Welch's T Test here.
+
+Looking at the assumptions for the test:
+IID - The ANES 2020 uses respondents from a fresh cross-section of respondents, and a collaboration to interview a subset of respondents from the General Social Survey (GSS).  This data collection process also rewards individuals for filling out surveys.  There is a possibility that this introduces dependencies.  For example, participants may tell friends or family members about this survey, resulting in a cluster of individuals that give similar responses.  Nevertheless, since the data collection process claims to have millions of users, which suggests that links between individuals should be rare.
+Metric - Age is a metric variable. A metric variable needs to have intervals to be equivalent. Here, age will fulfill that requirement.
+Normally Distributed - We can see in Figure 1 that the data is skewed and has a spike at 80. However, with a high sample size, CLT will kick in and normality will be fulfilled.
+
+\clearpage
+
+Hypothesis:
+
+$H_{0}:Mu_{(Democrats)} = Mu_{(Republicans)}$
+
+$H_{A}:Mu_{(Democrats)} != Mu_{(Republicans)}$
+
+\vspace{5mm} 
+```{r}
+t.test(df_democrats_republican$Age ~ df_democrats_republican$PoliticalParty)
+```
+## Test, results and interpretation
+We reject the null hypothesis that the two means are the same at the 95% confidence level. We have a highly significant test.  We can reject the null hypothesis that the mean age of Democratic voters is the same as that of Republican voters in 2020.
+
+In this test we are comparing the two group means and the test determines that they are not significantly different. The mean of group 1: Democrats is 54.57885 while the mean of the group 2:Republicans. The difference in means is 3.4553 years.
+Practically the difference in mean is quite small. 
+
+Going back to the research question, Are Democratic voters older or younger than Republican voters in 2020? We were able to determine that the age means at the 95% confidence level for Democratic voters and Republican voters it's not the same, however the difference in means it is not significant.   
+
+## References
+American National Election Studies. 2021. ANES 2020 Time Series Study Preliminary Release: Pre-Election Data [dataset and documentation]. February 11, 2021 version. www.electionstudies.org
